@@ -1,11 +1,12 @@
 from django.shortcuts import render, get_object_or_404
 from generank.api.models import news_feed
 from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 
 # Create your views here.
 
-class NewsFeedView(generic.TemplateView):
+class NewsFeedView(LoginRequiredMixin,generic.TemplateView):
     template_name = 'roughnewsfeed.html'
 
     #passes multiple objects to request for use in newsfeed

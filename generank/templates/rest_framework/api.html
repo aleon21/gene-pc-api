@@ -1,0 +1,14 @@
+{% load staticfiles %}
+
+{% extends "rest_framework/base.html" %}
+
+{% block bootstrap_theme %}
+    <link href="{% static 'img/favicon.ico' %}" rel="icon">
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,500,700|Roboto:400,900" rel="stylesheet">
+    <link href="{% static 'lib/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'lib/font-awesome/css/font-awesome.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/custom.css'%}" rel="stylesheet">
+    <link href="{% static 'css/style.css'%}" rel="stylesheet">
+{% endblock %}
+
+{% block bootstrap_navbar_variant %}{% endblock %}

@@ -48,8 +48,8 @@ urlpatterns = ([
     url(r'^news/$', web_views.newsfeed.NewsFeedView.as_view()),
 
 #     Accounts/Registration
-#     url(r'^accounts/',
-#         include('rest_framework.urls', namespace='rest_framework')),
+     url(r'^accounts/',
+         include('rest_framework.urls', namespace='rest_framework')),
 
     # Public API
     url(r'^api/', include(

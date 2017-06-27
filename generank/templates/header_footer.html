@@ -1,0 +1,146 @@
+{% load staticfiles %}
+
+<!DOCTYPE html>
+<html id='html'>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    {% block head %}
+
+    {% endblock %}
+
+    <link href="{% static 'img/favicon.ico' %}" rel="icon">
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,500,700|Roboto:400,900" rel="stylesheet">
+    <link href="{% static 'lib/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'lib/font-awesome/css/font-awesome.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/custom.css'%}" rel="stylesheet">
+    <link href="{% static 'css/style.css'%}" rel="stylesheet">
+  </head>
+
+  <body>
+    <div>
+      <nav class="navbar navbar-default navbar-static-top">
+        <div class="container-fluid">
+          <div class="col-lg-10 col-xs-12 col-lg-offset-1">
+            <div class="navbar-header">
+               <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+       				 <span class="navbar-toggler-icon"></span>
+      			</button>
+     			 <a class="navbar-brand" href="/"><img src="{% static 'img/logo_nav.png' %}" /> MyGeneRank</a>
+            </div>
+            
+            <div id="navbar" class="collapse navbar-collapse">
+            	<ul class="navbar-nav justify-content-end">
+         		 	<li class="nav-item">
+            			<a class="nav-link" href="/team">Team</a>
+         		 	</li>
+         		 	<li class="nav-item">
+           			 	<a class="nav-link" href="/contact">Contact</a>
+          			</li>
+        		</ul>
+
+              <ul class="nav navbar-nav navbar-right">
+                {% if not user.is_authenticated %}
+                <li class="secondary-nav">
+                  <a href="{% url 'rest_framework:login' %}">Login</a>
+                </li>
+                <li class="secondary-nav">
+                  <a href="{% url 'register' %}">
+                    Sign Up
+                  </a>
+                </li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <li class="dropdown">
+                  <a href="#"
+                     class="dropdown-toggle"
+                     data-toggle="dropdown"
+                     role="button"
+                     aria-haspopup="true"
+                     aria-expanded="false">
+                     <span>{{ user.username }}</span>
+                     <span class="caret"></span>
+                  </a>
+                  <ul class="dropdown-menu">
+                    <li><a href="/accounts/profile/">Account</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li class="secondary-nav">
+                      <a href="{% url 'logout' %}">
+                        <span>Logout</span>
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+                {% endif %}
+
+            </div>
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    <div style="height:100%; margin-bottom:150px;">
+    {% block body %}
+    
+    {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    {% if sticky %}
+    <footer class="site-footer fixed-bottom">
+    {% else %}
+    <footer class="site-footer">
+    {% endif %}
+      <div class="bottom">
+        <div class="container">
+          <div class="row">
+
+            <div class="col-lg-6 col-xs-12 text-lg-left text-center">
+              <p class="copyright-text">
+                <a href="//stsiweb.org" class="text-bright">© Scripps Translational Science Institute</a>
+              </p>
+              <div class="credits">
+                <a href="https://bootstrapmade.com/">Bootstrap Themes</a> by BootstrapMade
+              </div>
+            </div>
+
+            <div class="col-lg-6 col-xs-12 text-lg-right text-center">
+              <ul class="list-inline">
+                <li class="list-inline-item">
+                  <a href="/">Home</a>
+                </li>
+
+                <li class="list-inline-item">
+                  <a href="/team">Team</a>
+                </li>
+
+                <li class="list-inline-item">
+                  <a href="/contact">Contact</a>
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </footer>
+    <a class="scrolltop" href="#"><span class="fa fa-angle-up"></span></a>
+    <script src="{% static 'lib/jquery/jquery.min.js'%}"></script>
+    <script src="{% static 'lib/superfish/hoverIntent.js'%}"></script>
+    <script src="{% static 'lib/superfish/superfish.min.js'%}"></script>
+    <script src="{% static 'lib/tether/js/tether.min.js'%}"></script>
+    <script src="{% static 'lib/stellar/stellar.min.js'%}"></script>
+    <script src="{% static 'lib/bootstrap/js/bootstrap.min.js'%}"></script>
+    <script src="{% static 'lib/counterup/counterup.min.js'%}"></script>
+    <script src="{% static 'lib/waypoints/waypoints.min.js'%}"></script>
+    <script src="{% static 'lib/easing/easing.js'%}"></script>
+    <script src="{% static 'lib/stickyjs/sticky.js'%}"></script>
+    <script src="{% static 'lib/parallax/parallax.js'%}"></script>
+    <script src="{% static 'lib/lockfixed/lockfixed.min.js'%}"></script>
+
+    <!-- Template Specisifc Custom Javascript File -->
+    <script src="{% static 'js/custom.js'%}"></script>
+  </body>
+
