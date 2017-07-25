@@ -1,15 +1,23 @@
+from pickle import GET
+
 from rest_framework import viewsets, mixins
 from rest_framework import filters as django_filters
+from rest_framework.decorators import detail_route
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from oauth2_provider.ext.rest_framework.authentication import OAuth2Authentication
+from rest_framework.renderers import TemplateHTMLRenderer
 
+from generank.api.models import Activity
 from .. import filters
 from ..models import Condition, RiskScore, Population
 from ..tasks import send_registration_email_to_user
 from ..permissions import IsRegistered
 from ..serializers import RiskScoreSerializer, ConditionSerializer, \
     PopulationSerializer
+
+sys.path.append(os.environ['PIPELINE_DIRECTORY'].strip())
+from analysis import cad
 
 
 class ConditionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -64,11 +72,17 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     retrieve:
     Get a single risk score by its {id}.
     """
+
     authentication_classes = [OAuth2Authentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
     queryset = RiskScore.objects.all().order_by('-user')
     serializer_class = RiskScoreSerializer
     filter_backends = (filters.IsOwnerFilterBackend, django_filters.SearchFilter)
-    search_fields = ['user__id','name', 'condition__id', 'condition__name']
+    search_fields = ['user__id', 'name', 'condition__id', 'condition__name']
 
+    # Queries pipeline to calculate and return baseline, combined, and lifestyle risk.
+    # 07/25/17 Andre Leon
 
+    @detail_route(methods=[GET], permission_classes=[IsAuthenticated])
+    def predict(self, request, pk):
+        return

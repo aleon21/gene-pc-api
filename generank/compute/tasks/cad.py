@@ -4,6 +4,7 @@ import os, requests, sys, subprocess, uuid
 from celery import shared_task, chord, group
 
 from generank.api import models
+from generank.api.models import Activity
 from generank.api.tasks import send_risk_score_notification, send_post_cad_survey_to_users
 from generank.twentythreeandme.models  import User, Profile, Genotype
 from generank.compute.contextmanagers import record
@@ -55,7 +56,7 @@ def _get_total_cad_risk(results, user_id):
         return (ancestry_contents, *steps.grs_step_4(uuid.uuid4().hex, filename,
             ancestry_path, ancestry_contents, risk_of_risks, user_id, PHENOTYPE))
 
-
+#NEED to modify store results and get total risk
 @shared_task
 def _store_results(results, user_id):
     """ Given the results of a user's CAD risk score, store the data. """
@@ -89,7 +90,6 @@ def _send_cad_notification(user_id):
 
 # Public Tasks
 
-
 @shared_task
 def get_ancestry(user_id):
     """ Given an API user id, perform the ancestry calculations on that
@@ -121,3 +121,173 @@ def get_cad_risk_score(user_id):
         ) | _store_results.s(user_id) | notify_user
 
         workflow.delay()
+
+@shared_task
+def get_numeric_total_cholesterol(user_id):
+    """Reviews responses to total cholesterol survey questions to collect either
+        numerical value provided by user or estimated qualitative values (low, moderate, high)
+        which are then translated to numerical values as provided by NIH Medline plus
+        https://medlineplus.gov/magazine/issues/summer12/articles/summer12pg6-7.html.
+        07/25/17 Andre Leon"""
+
+    user = User.objects.get(id=user_id)
+
+    low_total_cholesterol = 190
+    moderate_total_cholesterol = 220
+    high_total_cholesterol = 250
+
+    subjective_total_cholesterol_level = Activity.Answers.objects.get(
+        identifier="PhenotypeSurveyTask.TotalHDLCholesterol", user=user).value
+
+    subjective_total_cholesterol_value = 0
+
+    if subjective_total_cholesterol_level.contains("low"):
+        subjective_total_cholesterol_value = low_total_cholesterol
+
+    elif subjective_total_cholesterol_level.contains("moderate"):
+        subjective_total_cholesterol_value = moderate_total_cholesterol
+
+    elif subjective_total_cholesterol_level.contains("high"):
+        subjective_total_cholesterol_value = high_total_cholesterol
+
+    if Activity.Answers.objects.get(
+            identifier="PhenotypeSurveyTask.PreciseTotalCholesterol", user=user).exists:
+
+        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.PreciseTotalCholesterol", user=user).value
+
+    else:
+        return subjective_total_cholesterol_value
+
+
+@shared_task
+def get_numeric_HDL_cholesterol(user_id):
+    """Reviews responses to HDL cholesterol survey questions to collect either
+    numerical value provided by user or estimated qualitative values (low, moderate, high)
+    which are then translated to numerical values as provided by NIH Medline plus
+    https://medlineplus.gov/magazine/issues/summer12/articles/summer12pg6-7.html.
+    07/25/17 Andre Leon"""
+
+    user = User.objects.get(id=user_id)
+
+    low_total_HDL_cholesterol = 35
+    moderate_total_HDL_cholesterol = 50
+    high_total_HDL_cholesterol = 65
+
+    subjective_HDL_cholesterol_level = Activity.Answers.objects.get(
+        identifier="PhenotypeSurveyTask.TotalHDLCholesterol", user=user).value
+
+    subjective_HDL_cholesterol_value = 0
+
+    if subjective_HDL_cholesterol_level.contains("normal"):
+        subjective_HDL_cholesterol_value = low_total_HDL_cholesterol
+
+    elif subjective_HDL_cholesterol_level.contains("moderate"):
+        subjective_HDL_cholesterol_value = moderate_total_HDL_cholesterol
+
+    elif subjective_HDL_cholesterol_level.contains("high"):
+        subjective_HDL_cholesterol_value = high_total_HDL_cholesterol
+
+    if Activity.Answers.objects.get(
+            identifier="PhenotypeSurveyTask.PreciseTotalHDLCholesterol", user=user).exists:
+
+        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.PreciseTotalHDLCholesterol", user=user).value
+
+    else:
+        return subjective_HDL_cholesterol_value
+
+@shared_task
+def get_numeric_systolic_blood_pressure(user_id):
+    """Reviews responses to blood pressure survey questions to collect either
+    numerical value provided by user or estimated qualitative values (normal, moderate, high)
+    which are then translated to numerical values as supplied by Evan Muse.
+    07/25/17 Andre Leon"""
+    user = User.objects.get(id=user_id)
+
+    normal_blood_pressure = 110
+    moderate_blood_pressure = 145
+    high_blood_pressure = 170
+
+    subjective_blood_pressure_level = Activity.Answers.objects.get(
+        identifier="PhenotypeSurveyTask.BloodPressureQuestion", user= user).value
+
+    subjective_blood_pressure_value = 0
+
+    if subjective_blood_pressure_level.contains("normal"):
+        subjective_blood_pressure_value = normal_blood_pressure
+
+    elif subjective_blood_pressure_level.contains("moderate"):
+        subjective_blood_pressure_value = moderate_blood_pressure
+
+    elif subjective_blood_pressure_level.contains("high"):
+        subjective_blood_pressure_value = high_blood_pressure
+
+    if Activity.Answers.objects.get(
+         identifier="PhenotypeSurveyTask.SystolicBloodPressureQuestion", user= user).exists:
+
+        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SystolicBloodPressureQuestion", user=user).value
+
+    else:
+        return subjective_blood_pressure_value
+
+
+@shared_task
+def get_obesity_status(user_id):
+    """Reviews responses to height and weight survey questions to calculate BMI
+    and obesity status (by extension). Calculations follow guidelines by CDC.
+    https://www.cdc.gov/nccdphp/dnpao/growthcharts/training/bmiage/page5_2.html
+    07/25/17 Andre Leon"""
+    user = User.objects.get(id = user_id)
+    height = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.HeightQuestion", user= user).value
+    weight = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.WeightQuestion", user= user).value
+
+    BMI = (weight/(height*height))*703
+
+    if BMI >= 30:
+        return True
+    else:
+        return False
+
+@shared_task
+def get_survey_responses(user_id):
+    """Given an API user id, return a list that contains survey responses
+     relevant for risk score calculation ('predict' function) in condition.py."""
+
+    user = User.objects.get(id = user_id)
+
+    sex_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SexQuestion", user= user).value
+
+    ancestry_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.AncestryQuestion", user = user).value
+
+    age_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.AgeQuestion", user = user).value
+
+    diabetic_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.DiabetiesQuestion", user = user).value
+
+    numeric_HDL_cholesterol = get_numeric_HDL_cholesterol(user.id.hex)
+
+    numeric_total_cholesterol = get_numeric_total_cholesterol(user.id.hex)
+
+    numeric_systolic_blood_pressure = get_numeric_systolic_blood_pressure(user.id.hex)
+
+    smoking_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SmokingQuestion", user = user).value
+
+    obesity_value = get_obesity_status(user.id.hex)
+
+    subjective_activity = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.ActivityQuestion", user= user).value
+
+    subjective_diet = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.HealthyDietQuestion", user= user).value
+
+    relevant_values = {
+        "sex": sex_value,
+        "ancestry": ancestry_value,
+        "age": age_value,
+        "diabetic": diabetic_value,
+        "HDL_cholesterol": numeric_HDL_cholesterol,
+        "total_cholesterol": numeric_total_cholesterol,
+        "systolicBP": numeric_systolic_blood_pressure,
+        "smoking": smoking_value,
+        "obesity": obesity_value,
+        "activity": subjective_activity,
+        "diet": subjective_diet
+    }
+
+    return relevant_values
