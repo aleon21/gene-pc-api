@@ -1,14 +1,10 @@
-from pickle import GET
-
 from rest_framework import viewsets, mixins
 from rest_framework import filters as django_filters
 from rest_framework.decorators import detail_route
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from oauth2_provider.ext.rest_framework.authentication import OAuth2Authentication
-from rest_framework.renderers import TemplateHTMLRenderer
 
-from generank.api.models import Activity
 from .. import filters
 from ..models import Condition, RiskScore, Population
 from ..tasks import send_registration_email_to_user
@@ -83,6 +79,6 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     # Queries pipeline to calculate and return baseline, combined, and lifestyle risk.
     # 07/25/17 Andre Leon
 
-    @detail_route(methods=[GET], permission_classes=[IsAuthenticated])
+    @detail_route(methods=["GET"])
     def predict(self, request, pk):
         return

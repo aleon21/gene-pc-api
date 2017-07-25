@@ -1,10 +1,11 @@
 """ A module for distributing calculation tasks for CAD Risk Score. """
 import os, requests, sys, subprocess, uuid
+from django.conf import settings
 
 from celery import shared_task, chord, group
 
 from generank.api import models
-from generank.api.models import Activity
+from generank.api.models import ActivityAnswer
 from generank.api.tasks import send_risk_score_notification, send_post_cad_survey_to_users
 from generank.twentythreeandme.models  import User, Profile, Genotype
 from generank.compute.contextmanagers import record
@@ -136,8 +137,8 @@ def get_numeric_total_cholesterol(user_id):
     moderate_total_cholesterol = 220
     high_total_cholesterol = 250
 
-    subjective_total_cholesterol_level = Activity.Answers.objects.get(
-        identifier="PhenotypeSurveyTask.TotalHDLCholesterol", user=user).value
+    subjective_total_cholesterol_level = ActivityAnswer.objects.get(
+        identifier=settings.TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     subjective_total_cholesterol_value = 0
 
@@ -150,10 +151,10 @@ def get_numeric_total_cholesterol(user_id):
     elif subjective_total_cholesterol_level.contains("high"):
         subjective_total_cholesterol_value = high_total_cholesterol
 
-    if Activity.Answers.objects.get(
-            identifier="PhenotypeSurveyTask.PreciseTotalCholesterol", user=user).exists:
+    if ActivityAnswer.objects.get(
+            identifier=settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).exists():
 
-        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.PreciseTotalCholesterol", user=user).value
+        return ActivityAnswer.objects.get(identifier= settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     else:
         return subjective_total_cholesterol_value
@@ -173,8 +174,8 @@ def get_numeric_HDL_cholesterol(user_id):
     moderate_total_HDL_cholesterol = 50
     high_total_HDL_cholesterol = 65
 
-    subjective_HDL_cholesterol_level = Activity.Answers.objects.get(
-        identifier="PhenotypeSurveyTask.TotalHDLCholesterol", user=user).value
+    subjective_HDL_cholesterol_level = ActivityAnswer.objects.get(
+        identifier=settings.TOTAL_HDL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     subjective_HDL_cholesterol_value = 0
 
@@ -187,10 +188,10 @@ def get_numeric_HDL_cholesterol(user_id):
     elif subjective_HDL_cholesterol_level.contains("high"):
         subjective_HDL_cholesterol_value = high_total_HDL_cholesterol
 
-    if Activity.Answers.objects.get(
-            identifier="PhenotypeSurveyTask.PreciseTotalHDLCholesterol", user=user).exists:
+    if ActivityAnswer.objects.get(
+            identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).exists():
 
-        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.PreciseTotalHDLCholesterol", user=user).value
+        return ActivityAnswer.objects.get(identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     else:
         return subjective_HDL_cholesterol_value
@@ -207,8 +208,8 @@ def get_numeric_systolic_blood_pressure(user_id):
     moderate_blood_pressure = 145
     high_blood_pressure = 170
 
-    subjective_blood_pressure_level = Activity.Answers.objects.get(
-        identifier="PhenotypeSurveyTask.BloodPressureQuestion", user= user).value
+    subjective_blood_pressure_level = ActivityAnswer.objects.get(
+        identifier=settings.BLOOD_PRESSURE_QUESTION_IDENTIFIER, user= user).value
 
     subjective_blood_pressure_value = 0
 
@@ -221,10 +222,10 @@ def get_numeric_systolic_blood_pressure(user_id):
     elif subjective_blood_pressure_level.contains("high"):
         subjective_blood_pressure_value = high_blood_pressure
 
-    if Activity.Answers.objects.get(
-         identifier="PhenotypeSurveyTask.SystolicBloodPressureQuestion", user= user).exists:
+    if ActivityAnswer.objects.get(
+         identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user= user).exists():
 
-        return Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SystolicBloodPressureQuestion", user=user).value
+        return ActivityAnswer.objects.get(identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user=user).value
 
     else:
         return subjective_blood_pressure_value
@@ -237,8 +238,8 @@ def get_obesity_status(user_id):
     https://www.cdc.gov/nccdphp/dnpao/growthcharts/training/bmiage/page5_2.html
     07/25/17 Andre Leon"""
     user = User.objects.get(id = user_id)
-    height = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.HeightQuestion", user= user).value
-    weight = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.WeightQuestion", user= user).value
+    height = ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).value
+    weight = ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).value
 
     BMI = (weight/(height*height))*703
 
@@ -254,13 +255,13 @@ def get_survey_responses(user_id):
 
     user = User.objects.get(id = user_id)
 
-    sex_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SexQuestion", user= user).value
+    sex_value = ActivityAnswer.objects.get(identifier=settings.SEX_QUESTION_IDENTIFIER, user= user).value
 
-    ancestry_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.AncestryQuestion", user = user).value
+    ancestry_value = ActivityAnswer.objects.get(identifier=settings.ANCESTRY_QUESTION_IDENTIFIER, user = user).value
 
-    age_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.AgeQuestion", user = user).value
+    age_value = ActivityAnswer.objects.get(identifier=settings.AGE_QUESTION_IDENTIFIER, user=user).value
 
-    diabetic_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.DiabetiesQuestion", user = user).value
+    diabetic_value = ActivityAnswer.objects.get(identifier=settings.DIABETES_IDENTIFIER, user = user).value
 
     numeric_HDL_cholesterol = get_numeric_HDL_cholesterol(user.id.hex)
 
@@ -268,13 +269,13 @@ def get_survey_responses(user_id):
 
     numeric_systolic_blood_pressure = get_numeric_systolic_blood_pressure(user.id.hex)
 
-    smoking_value = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.SmokingQuestion", user = user).value
+    smoking_value = ActivityAnswer.objects.get(identifier=settings.SMOKING_IDENTIFIER, user = user).value
 
     obesity_value = get_obesity_status(user.id.hex)
 
-    subjective_activity = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.ActivityQuestion", user= user).value
+    subjective_activity = ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user= user).value
 
-    subjective_diet = Activity.Answers.objects.get(identifier="PhenotypeSurveyTask.HealthyDietQuestion", user= user).value
+    subjective_diet = ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user= user).value
 
     relevant_values = {
         "sex": sex_value,
