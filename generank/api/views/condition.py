@@ -1,9 +1,13 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import viewsets, mixins
 from rest_framework import filters as django_filters
 from rest_framework.decorators import detail_route
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from oauth2_provider.ext.rest_framework.authentication import OAuth2Authentication
+from rest_framework.response import Response
+
+from generank.compute.tasks.cad import get_survey_responses
 
 from .. import filters
 from ..models import Condition, RiskScore, Population
@@ -81,4 +85,46 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
     @detail_route(methods=["GET"])
     def predict(self, request, pk):
-        return
+        values = get_survey_responses(request.user.id.hex)
+
+        try:
+            baseline_risk = cad.get_baseline_risk(values["sex"],
+                                                  values["ancestry"],
+                                                  values["age"],
+                                                  values["total_cholesterol"],
+                                                  values["HDL_cholesterol"],
+                                                  values["systolicBP_untreated"],
+                                                  values["systolicBP_treated"],
+                                                  values["smoking_default"],
+                                                  values["diabetic"])
+
+            combined_risk = cad.get_combined_risk(baseline_risk,
+                                                  values["odds_category"],
+                                                  values["average_odds"])
+
+            lifestyle_risk = cad.get_lifestyle_risk(values["smoking_default"],
+                                                    values["obesity_default"],
+                                                    values["activity_default"],
+                                                    values["diet_default"],
+                                                    combined_risk)
+
+            return Response({"results": [{
+                "name": "Baseline Risk",
+                "value": baseline_risk
+            },
+            {
+                "name": "Combined Risk",
+                "value": combined_risk
+            },
+            {
+                "name": "Lifestyle Risk",
+                "value": lifestyle_risk
+            }]})
+
+        except ObjectDoesNotExist:
+            return Response ({"error":
+                {
+                    "message": "....",
+                    "code": 400
+                }
+            })

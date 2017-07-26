@@ -236,22 +236,33 @@ def get_obesity_status(user_id):
     """Reviews responses to height and weight survey questions to calculate BMI
     and obesity status (by extension). Calculations follow guidelines by CDC.
     https://www.cdc.gov/nccdphp/dnpao/growthcharts/training/bmiage/page5_2.html
+    Returns Obesity: FALSE if either height or weight are omitted.
     07/25/17 Andre Leon"""
     user = User.objects.get(id = user_id)
-    height = ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).value
-    weight = ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).value
 
-    BMI = (weight/(height*height))*703
+    if ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).exists():
+        if ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).exists():
+            height = ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).value
+            weight = ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).value
 
-    if BMI >= 30:
-        return True
+            BMI = (weight/(height*height))*703
+
+            if BMI >= 30:
+                return True
+            else:
+                return False
     else:
         return False
 
 @shared_task
 def get_survey_responses(user_id):
     """Given an API user id, return a list that contains survey responses
-     relevant for risk score calculation ('predict' function) in condition.py."""
+     relevant for risk score calculation ('predict' function) in condition.py.
+
+     NOTE: This script ensures that the correct systolic blood pressure values are calculated. If
+        the user is NOT treated for BP than the systolic_blood_pressure_treated parameter is set to 0 so
+        that it does not influence the baseline risk calculation. Vice Versa.
+        07/25/17 Andre Leon"""
 
     user = User.objects.get(id = user_id)
 
@@ -273,9 +284,29 @@ def get_survey_responses(user_id):
 
     obesity_value = get_obesity_status(user.id.hex)
 
-    subjective_activity = ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user= user).value
+    #Returns false if activity question is omitted.
+    if ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user= user).exists():
+        subjective_activity = ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user=user).value
+    else:
+        subjective_activity = False
 
-    subjective_diet = ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user= user).value
+    #Returns false if diet question is omitted.
+    if ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user= user).exists():
+        subjective_diet = ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user=user).value
+    else:
+        subjective_diet= False
+
+    #THIS IS THE SCRIPT THAT DETERMINES WHAT SYSTOLIC BLOOD PRESSURE TO USE.
+    if(ActivityAnswer.objects.get(identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER, user= user).exists()):
+        if(ActivityAnswer.objects.get(identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER,
+                                                            user= user).value):
+            systolic_blood_pressure_treated = numeric_systolic_blood_pressure
+            systolic_blood_pressure_untreated = 0
+
+        else:
+            systolic_blood_pressure_untreated = numeric_systolic_blood_pressure
+            systolic_blood_pressure_treated = 0
+
 
     relevant_values = {
         "sex": sex_value,
@@ -284,11 +315,16 @@ def get_survey_responses(user_id):
         "diabetic": diabetic_value,
         "HDL_cholesterol": numeric_HDL_cholesterol,
         "total_cholesterol": numeric_total_cholesterol,
-        "systolicBP": numeric_systolic_blood_pressure,
-        "smoking": smoking_value,
-        "obesity": obesity_value,
-        "activity": subjective_activity,
-        "diet": subjective_diet
+        "systolicBP_untreated": systolic_blood_pressure_untreated,
+        "systolicBP_treated": systolic_blood_pressure_treated,
+        "smoking_default": smoking_value,
+        "obesity_default": obesity_value,
+        "activity_default": subjective_activity,
+        "diet_default": subjective_diet,
+
+        # PLACE_HOLDER_PLEASE_NOTE
+        "odds_category": 1.8,
+        "average_odds": 1.4
     }
 
     return relevant_values

@@ -363,6 +363,7 @@ DIABETES_IDENTIFIER = "PhenotypeSurveyTask.DiabetiesQuestion"
 SMOKING_IDENTIFIER = "PhenotypeSurveyTask.SmokingQuestion"
 ACTIVITY_IDENTIFIER = "PhenotypeSurveyTask.ActivityQuestion"
 DIET_IDENTIFIER = "PhenotypeSurveyTask.HealthyDietQuestion"
+BLOOD_PRESSURE_MEDICATION_IDENTIFIER = "PhenotypeSurveyTask.BloodPressureMedicationQuestion"
 
 # Which tasks are available to new users by default.
 DEFAULT_STUDY_IDS = [
