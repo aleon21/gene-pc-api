@@ -5,7 +5,6 @@ from django.conf import settings
 from celery import shared_task, chord, group
 
 from generank.api import models
-from generank.api.models import ActivityAnswer
 from generank.api.tasks import send_risk_score_notification, send_post_cad_survey_to_users
 from generank.twentythreeandme.models  import User, Profile, Genotype
 from generank.compute.contextmanagers import record
@@ -131,30 +130,30 @@ def get_numeric_total_cholesterol(user_id):
         https://medlineplus.gov/magazine/issues/summer12/articles/summer12pg6-7.html.
         07/25/17 Andre Leon"""
 
-    user = User.objects.get(id=user_id)
+    user = models.User.objects.get(id=user_id)
 
     low_total_cholesterol = 190
     moderate_total_cholesterol = 220
     high_total_cholesterol = 250
 
-    subjective_total_cholesterol_level = ActivityAnswer.objects.get(
-        identifier=settings.TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value
+    subjective_total_cholesterol_level = models.ActivityAnswer.objects.get(
+        question_identifier=settings.TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     subjective_total_cholesterol_value = 0
 
-    if subjective_total_cholesterol_level.contains("low"):
+    if subjective_total_cholesterol_level == "low":
         subjective_total_cholesterol_value = low_total_cholesterol
 
-    elif subjective_total_cholesterol_level.contains("moderate"):
+    elif subjective_total_cholesterol_level == "moderate" or subjective_total_cholesterol_level == "unknown":
         subjective_total_cholesterol_value = moderate_total_cholesterol
 
-    elif subjective_total_cholesterol_level.contains("high"):
+    elif subjective_total_cholesterol_level == "high":
         subjective_total_cholesterol_value = high_total_cholesterol
 
-    if ActivityAnswer.objects.get(
-            identifier=settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).exists():
+    if models.ActivityAnswer.objects.filter(
+            question_identifier=settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).exists():
 
-        return ActivityAnswer.objects.get(identifier= settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value
+        return float(models.ActivityAnswer.objects.get(question_identifier= settings.PRECISE_TOTAL_CHOLESTEROL_IDENTIFIER, user=user).value)
 
     else:
         return subjective_total_cholesterol_value
@@ -168,30 +167,30 @@ def get_numeric_HDL_cholesterol(user_id):
     https://medlineplus.gov/magazine/issues/summer12/articles/summer12pg6-7.html.
     07/25/17 Andre Leon"""
 
-    user = User.objects.get(id=user_id)
+    user = models.User.objects.get(id=user_id)
 
     low_total_HDL_cholesterol = 35
     moderate_total_HDL_cholesterol = 50
     high_total_HDL_cholesterol = 65
 
-    subjective_HDL_cholesterol_level = ActivityAnswer.objects.get(
-        identifier=settings.TOTAL_HDL_CHOLESTEROL_IDENTIFIER, user=user).value
+    subjective_HDL_cholesterol_level = models.ActivityAnswer.objects.get(
+        question_identifier=settings.TOTAL_HDL_CHOLESTEROL_IDENTIFIER, user=user).value
 
     subjective_HDL_cholesterol_value = 0
 
-    if subjective_HDL_cholesterol_level.contains("normal"):
+    if subjective_HDL_cholesterol_level == "normal":
         subjective_HDL_cholesterol_value = low_total_HDL_cholesterol
 
-    elif subjective_HDL_cholesterol_level.contains("moderate"):
+    elif subjective_HDL_cholesterol_level == "moderate" or subjective_HDL_cholesterol_level == "unknown":
         subjective_HDL_cholesterol_value = moderate_total_HDL_cholesterol
 
-    elif subjective_HDL_cholesterol_level.contains("high"):
+    elif subjective_HDL_cholesterol_level == "high":
         subjective_HDL_cholesterol_value = high_total_HDL_cholesterol
 
-    if ActivityAnswer.objects.get(
-            identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).exists():
+    if models.ActivityAnswer.objects.filter(
+            question_identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).exists():
 
-        return ActivityAnswer.objects.get(identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).value
+        return float(models.ActivityAnswer.objects.get(question_identifier=settings.PRECISE_HDL_CHOLESTEROL_IDENTIFIER, user=user).value)
 
     else:
         return subjective_HDL_cholesterol_value
@@ -202,30 +201,30 @@ def get_numeric_systolic_blood_pressure(user_id):
     numerical value provided by user or estimated qualitative values (normal, moderate, high)
     which are then translated to numerical values as supplied by Evan Muse.
     07/25/17 Andre Leon"""
-    user = User.objects.get(id=user_id)
+    user = models.User.objects.get(id=user_id)
 
     normal_blood_pressure = 110
     moderate_blood_pressure = 145
     high_blood_pressure = 170
 
-    subjective_blood_pressure_level = ActivityAnswer.objects.get(
-        identifier=settings.BLOOD_PRESSURE_QUESTION_IDENTIFIER, user= user).value
+    subjective_blood_pressure_level = models.ActivityAnswer.objects.get(
+        question_identifier=settings.BLOOD_PRESSURE_QUESTION_IDENTIFIER, user= user).value
 
     subjective_blood_pressure_value = 0
 
-    if subjective_blood_pressure_level.contains("normal"):
+    if subjective_blood_pressure_level == "normal":
         subjective_blood_pressure_value = normal_blood_pressure
 
-    elif subjective_blood_pressure_level.contains("moderate"):
+    elif subjective_blood_pressure_level == "moderate" or subjective_blood_pressure_level == "unknown":
         subjective_blood_pressure_value = moderate_blood_pressure
 
-    elif subjective_blood_pressure_level.contains("high"):
+    elif subjective_blood_pressure_level == "high":
         subjective_blood_pressure_value = high_blood_pressure
 
-    if ActivityAnswer.objects.get(
-         identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user= user).exists():
+    if models.ActivityAnswer.objects.filter(
+            question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user= user).exists():
 
-        return ActivityAnswer.objects.get(identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user=user).value
+        return float(models.ActivityAnswer.objects.get(question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user=user).value)
 
     else:
         return subjective_blood_pressure_value
@@ -238,12 +237,12 @@ def get_obesity_status(user_id):
     https://www.cdc.gov/nccdphp/dnpao/growthcharts/training/bmiage/page5_2.html
     Returns Obesity: FALSE if either height or weight are omitted.
     07/25/17 Andre Leon"""
-    user = User.objects.get(id = user_id)
+    user = models.User.objects.get(id = user_id)
 
-    if ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).exists():
-        if ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).exists():
-            height = ActivityAnswer.objects.get(identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).value
-            weight = ActivityAnswer.objects.get(identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).value
+    if models.ActivityAnswer.objects.filter(question_identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).exists():
+        if models.ActivityAnswer.objects.filter(question_identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).exists():
+            height = float(models.ActivityAnswer.objects.get(question_identifier=settings.HEIGHT_QUESTION_IDENTIFIER, user= user).value)
+            weight = float(models.ActivityAnswer.objects.get(question_identifier=settings.WEIGHT_QUESTION_IDENTIFIER, user= user).value)
 
             BMI = (weight/(height*height))*703
 
@@ -264,15 +263,15 @@ def get_survey_responses(user_id):
         that it does not influence the baseline risk calculation. Vice Versa.
         07/25/17 Andre Leon"""
 
-    user = User.objects.get(id = user_id)
+    user = models.User.objects.get(id = user_id)
 
-    sex_value = ActivityAnswer.objects.get(identifier=settings.SEX_QUESTION_IDENTIFIER, user= user).value
+    sex_value = models.ActivityAnswer.objects.get(question_identifier=settings.SEX_QUESTION_IDENTIFIER, user= user).value
 
-    ancestry_value = ActivityAnswer.objects.get(identifier=settings.ANCESTRY_QUESTION_IDENTIFIER, user = user).value
+    ancestry_value = models.ActivityAnswer.objects.get(question_identifier=settings.ANCESTRY_QUESTION_IDENTIFIER, user = user).boolean_value
 
-    age_value = ActivityAnswer.objects.get(identifier=settings.AGE_QUESTION_IDENTIFIER, user=user).value
+    age_value = int(models.ActivityAnswer.objects.get(question_identifier=settings.AGE_QUESTION_IDENTIFIER, user=user).value)
 
-    diabetic_value = ActivityAnswer.objects.get(identifier=settings.DIABETES_IDENTIFIER, user = user).value
+    diabetic_value = models.ActivityAnswer.objects.get(question_identifier=settings.DIABETES_IDENTIFIER, user = user).boolean_value
 
     numeric_HDL_cholesterol = get_numeric_HDL_cholesterol(user.id.hex)
 
@@ -280,32 +279,33 @@ def get_survey_responses(user_id):
 
     numeric_systolic_blood_pressure = get_numeric_systolic_blood_pressure(user.id.hex)
 
-    smoking_value = ActivityAnswer.objects.get(identifier=settings.SMOKING_IDENTIFIER, user = user).value
+    smoking_value = models.ActivityAnswer.objects.get(question_identifier=settings.SMOKING_IDENTIFIER, user = user).boolean_value
 
     obesity_value = get_obesity_status(user.id.hex)
 
     #Returns false if activity question is omitted.
-    if ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user= user).exists():
-        subjective_activity = ActivityAnswer.objects.get(identifier=settings.ACTIVITY_IDENTIFIER, user=user).value
+    if models.ActivityAnswer.objects.filter(question_identifier=settings.ACTIVITY_IDENTIFIER, user= user).exists():
+        subjective_activity = models.ActivityAnswer.objects.get(question_identifier=settings.ACTIVITY_IDENTIFIER, user=user).boolean_value
     else:
         subjective_activity = False
 
     #Returns false if diet question is omitted.
-    if ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user= user).exists():
-        subjective_diet = ActivityAnswer.objects.get(identifier=settings.DIET_IDENTIFIER, user=user).value
+    if models.ActivityAnswer.objects.filter(question_identifier=settings.DIET_IDENTIFIER, user= user).exists():
+        subjective_diet = models.ActivityAnswer.objects.get(question_identifier=settings.DIET_IDENTIFIER, user=user).boolean_value
     else:
         subjective_diet= False
 
     #THIS IS THE SCRIPT THAT DETERMINES WHAT SYSTOLIC BLOOD PRESSURE TO USE.
-    if(ActivityAnswer.objects.get(identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER, user= user).exists()):
-        if(ActivityAnswer.objects.get(identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER,
-                                                            user= user).value):
+    if(models.ActivityAnswer.objects.filter(question_identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER, user= user).exists()):
+        if(models.ActivityAnswer.objects.get(question_identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER,
+                                                            user= user).boolean_value):
             systolic_blood_pressure_treated = numeric_systolic_blood_pressure
-            systolic_blood_pressure_untreated = 0
+            systolic_blood_pressure_untreated = 1
 
         else:
             systolic_blood_pressure_untreated = numeric_systolic_blood_pressure
-            systolic_blood_pressure_treated = 0
+            systolic_blood_pressure_treated = 1
+
 
 
     relevant_values = {
@@ -319,11 +319,10 @@ def get_survey_responses(user_id):
         "systolicBP_treated": systolic_blood_pressure_treated,
         "smoking_default": smoking_value,
         "obesity_default": obesity_value,
-        "activity_default": subjective_activity,
-        "diet_default": subjective_diet,
+        "physical_activity_default": subjective_activity,
+        "healthy_diet_default": subjective_diet,
 
         # PLACE_HOLDER_PLEASE_NOTE
-        "odds_category": 1.8,
         "average_odds": 1.4
     }
 

@@ -1,4 +1,7 @@
+import sys, os
+
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.datastructures import MultiValueDictKeyError
 from rest_framework import viewsets, mixins
 from rest_framework import filters as django_filters
 from rest_framework.decorators import detail_route
@@ -88,6 +91,12 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         values = get_survey_responses(request.user.id.hex)
 
         try:
+
+            smoking = bool(request.GET["smoking"])
+            physically_active = bool(request.GET["physically_active"])
+            healthy_diet = bool(request.GET["healthy_diet"])
+            obese = bool(request.GET["obese"])
+
             baseline_risk = cad.get_baseline_risk(values["sex"],
                                                   values["ancestry"],
                                                   values["age"],
@@ -98,15 +107,29 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                                                   values["smoking_default"],
                                                   values["diabetic"])
 
+            individual_risk_score = RiskScore.objects.get(id=pk).value
+
             combined_risk = cad.get_combined_risk(baseline_risk,
-                                                  values["odds_category"],
+                                                  individual_risk_score,
                                                   values["average_odds"])
 
-            lifestyle_risk = cad.get_lifestyle_risk(values["smoking_default"],
+            # the following values are testing placeholders
+           #  smoking = True
+           # obese = False
+            # physically_active = True
+            # healthy_diet = False
+
+            # The non-default values need to be provided from the lifestyle risk user interface.
+            lifestyle_risk = cad.get_lifestyle_risk(smoking,
+                                                    obese,
+                                                    physically_active,
+                                                    healthy_diet,
+                                                    combined_risk,
+                                                    values["smoking_default"],
                                                     values["obesity_default"],
-                                                    values["activity_default"],
-                                                    values["diet_default"],
-                                                    combined_risk)
+                                                    values["physical_activity_default"],
+                                                    values["healthy_diet_default"]
+                                                    )
 
             return Response({"results": [{
                 "name": "Baseline Risk",
@@ -121,10 +144,10 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                 "value": lifestyle_risk
             }]})
 
-        except ObjectDoesNotExist:
+        # missing or invalid lifestyle parameter
+        except MultiValueDictKeyError:
             return Response ({"error":
                 {
                     "message": "....",
-                    "code": 400
                 }
-            })
+            }, status=400)
