@@ -322,8 +322,8 @@ def get_survey_responses(user_id):
         "physical_activity_default": subjective_activity,
         "healthy_diet_default": subjective_diet,
 
-        # PLACE_HOLDER_PLEASE_NOTE
-        "average_odds": 1.4
+        # This is the median odds ratio for genetic CAD risk. It comes from: https://www.ncbi.nlm.nih.gov/pubmed/25748612
+        "medium_odds": 1.32
     }
 
     return relevant_values
