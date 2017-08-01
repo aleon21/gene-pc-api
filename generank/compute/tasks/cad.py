@@ -3,6 +3,7 @@ import os, requests, sys, subprocess, uuid
 from django.conf import settings
 
 from celery import shared_task, chord, group
+from django.core.exceptions import ObjectDoesNotExist
 
 from generank.api import models
 from generank.api.tasks import send_risk_score_notification, send_post_cad_survey_to_users
@@ -207,6 +208,11 @@ def get_numeric_systolic_blood_pressure(user_id):
     moderate_blood_pressure = 145
     high_blood_pressure = 170
 
+    if models.ActivityAnswer.objects.filter(
+            question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user= user).exists():
+
+        return float(models.ActivityAnswer.objects.get(question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user=user).value)
+
     subjective_blood_pressure_level = models.ActivityAnswer.objects.get(
         question_identifier=settings.BLOOD_PRESSURE_QUESTION_IDENTIFIER, user= user).value
 
@@ -221,14 +227,8 @@ def get_numeric_systolic_blood_pressure(user_id):
     elif subjective_blood_pressure_level == "high":
         subjective_blood_pressure_value = high_blood_pressure
 
-    if models.ActivityAnswer.objects.filter(
-            question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user= user).exists():
-
-        return float(models.ActivityAnswer.objects.get(question_identifier=settings.SYSTOLIC_BLOOD_PRESSURE_IDENTIFIER, user=user).value)
-
     else:
         return subjective_blood_pressure_value
-
 
 @shared_task
 def get_obesity_status(user_id):
@@ -251,7 +251,26 @@ def get_obesity_status(user_id):
             else:
                 return False
     else:
+        return ObjectDoesNotExist
+
+@shared_task
+def validate_numb(parameter, lower_bound_inclusive, upper_bound_inclusive):
+    if parameter < lower_bound_inclusive or parameter > upper_bound_inclusive:
+        return ValueError
+
+    else:
+        return parameter
+
+
+@shared_task
+def verify_boolean(parameter):
+    # verifies boolean is valid (this is for the lifestyle parameters in condition.py)
+    if parameter == 1:
+        return True
+    elif parameter == 0:
         return False
+    else:
+        return ValueError
 
 @shared_task
 def get_survey_responses(user_id):
@@ -263,21 +282,28 @@ def get_survey_responses(user_id):
         that it does not influence the baseline risk calculation. Vice Versa.
         07/25/17 Andre Leon"""
 
+
     user = models.User.objects.get(id = user_id)
 
     sex_value = models.ActivityAnswer.objects.get(question_identifier=settings.SEX_QUESTION_IDENTIFIER, user= user).value
+    if sex_value != "male" or "female":
+        return ValueError
 
     ancestry_value = models.ActivityAnswer.objects.get(question_identifier=settings.ANCESTRY_QUESTION_IDENTIFIER, user = user).boolean_value
 
     age_value = int(models.ActivityAnswer.objects.get(question_identifier=settings.AGE_QUESTION_IDENTIFIER, user=user).value)
+    validate_numb(age_value, 40, 79)
 
     diabetic_value = models.ActivityAnswer.objects.get(question_identifier=settings.DIABETES_IDENTIFIER, user = user).boolean_value
 
     numeric_HDL_cholesterol = get_numeric_HDL_cholesterol(user.id.hex)
+    validate_numb(numeric_HDL_cholesterol, 20, 100)
 
     numeric_total_cholesterol = get_numeric_total_cholesterol(user.id.hex)
+    validate_numb(numeric_HDL_cholesterol, 130, 320)
 
     numeric_systolic_blood_pressure = get_numeric_systolic_blood_pressure(user.id.hex)
+    validate_numb(numeric_systolic_blood_pressure, 90, 200)
 
     smoking_value = models.ActivityAnswer.objects.get(question_identifier=settings.SMOKING_IDENTIFIER, user = user).boolean_value
 
@@ -293,7 +319,7 @@ def get_survey_responses(user_id):
     if models.ActivityAnswer.objects.filter(question_identifier=settings.DIET_IDENTIFIER, user= user).exists():
         subjective_diet = models.ActivityAnswer.objects.get(question_identifier=settings.DIET_IDENTIFIER, user=user).boolean_value
     else:
-        subjective_diet= False
+        subjective_diet = False
 
     #THIS IS THE SCRIPT THAT DETERMINES WHAT SYSTOLIC BLOOD PRESSURE TO USE.
     if(models.ActivityAnswer.objects.filter(question_identifier=settings.BLOOD_PRESSURE_MEDICATION_IDENTIFIER, user= user).exists()):
@@ -305,8 +331,6 @@ def get_survey_responses(user_id):
         else:
             systolic_blood_pressure_untreated = numeric_systolic_blood_pressure
             systolic_blood_pressure_treated = 1
-
-
 
     relevant_values = {
         "sex": sex_value,
@@ -327,3 +351,4 @@ def get_survey_responses(user_id):
     }
 
     return relevant_values
+

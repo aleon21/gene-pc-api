@@ -52,8 +52,10 @@ class ActivityAnswer(models.Model):
     def boolean_value(self):
         if(self.value.lower() == "true" or self.value.lower() == "yes"):
             return True
-        else:
+        elif(self.value.lower() == "false" or self.value.lower() == "no"):
             return False
+        else:
+            return ValueError
 
     def __str__(self):
         return '<API: ActivityAnswer: %s %s>' % (self.user.username, self.question_identifier)

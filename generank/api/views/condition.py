@@ -10,7 +10,7 @@ from rest_framework.authentication import SessionAuthentication
 from oauth2_provider.ext.rest_framework.authentication import OAuth2Authentication
 from rest_framework.response import Response
 
-from generank.compute.tasks.cad import get_survey_responses
+from generank.compute.tasks.cad import get_survey_responses, verify_boolean
 
 from .. import filters
 from ..models import Condition, RiskScore, Population
@@ -88,14 +88,46 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
     @detail_route(methods=["GET"])
     def predict(self, request, pk):
-        values = get_survey_responses(request.user.id.hex)
 
         try:
 
-            smoking = bool(request.GET["smoking"])
-            physically_active = bool(request.GET["physically_active"])
-            healthy_diet = bool(request.GET["healthy_diet"])
-            obese = bool(request.GET["obese"])
+            values = get_survey_responses(request.user.id.hex)
+
+        except ValueError:
+            pass
+            # parameter is out of bound
+        except ObjectDoesNotExist:
+            pass
+            # survey
+
+        try:
+            # verify boolean checks if value is 1 or 0 and returns ValueError if it is neither
+            # it is stored in compute/tasks/cad.py
+            smoking = verify_boolean(request.GET["smoking"])
+
+            physically_active = verify_boolean(request.GET["physically_active"])
+
+            healthy_diet = verify_boolean(request.GET["healthy_diet"])
+
+            obese = verify_boolean(request.GET["obese"])
+
+
+        # missing or invalid lifestyle parameter
+        except MultiValueDictKeyError:
+            return Response({"error":
+                    {
+                        "message": "....",
+                    }
+            }, status=400)
+
+        except ValueError:
+            return Response({"error":
+                {
+                    "message": "....",
+                }
+            }, status=400)
+
+        try:
 
             baseline_risk = cad.get_baseline_risk(values["sex"],
                                                   values["ancestry"],
@@ -113,12 +145,6 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                                                   individual_risk_score,
                                                   values["average_odds"])
 
-            # the following values are testing placeholders
-           #  smoking = True
-           # obese = False
-            # physically_active = True
-            # healthy_diet = False
-
             # The non-default values need to be provided from the lifestyle risk user interface.
             lifestyle_risk = cad.get_lifestyle_risk(smoking,
                                                     obese,
@@ -131,23 +157,23 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                                                     values["healthy_diet_default"]
                                                     )
 
-            return Response({"results": [{
-                "name": "Baseline Risk",
-                "value": baseline_risk
-            },
-            {
-                "name": "Combined Risk",
-                "value": combined_risk
-            },
-            {
-                "name": "Lifestyle Risk",
-                "value": lifestyle_risk
-            }]})
-
-        # missing or invalid lifestyle parameter
-        except MultiValueDictKeyError:
-            return Response ({"error":
+        # missing or invalid parameter from cad.get_survey_responses
+        except Exception:
+            return Response({"error":
                 {
                     "message": "....",
                 }
             }, status=400)
+
+        return Response({"results": [{
+            "name": "Baseline Risk",
+            "value": baseline_risk
+        },
+        {
+            "name": "Combined Risk",
+            "value": combined_risk
+        },
+        {
+            "name": "Lifestyle Risk",
+            "value": lifestyle_risk
+        }]})
