@@ -55,7 +55,7 @@ class ActivityAnswer(models.Model):
         elif(self.value.lower() == "false" or self.value.lower() == "no"):
             return False
         else:
-            return ValueError
+            raise ValueError
 
     def __str__(self):
         return '<API: ActivityAnswer: %s %s>' % (self.user.username, self.question_identifier)

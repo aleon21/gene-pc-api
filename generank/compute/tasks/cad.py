@@ -251,12 +251,12 @@ def get_obesity_status(user_id):
             else:
                 return False
     else:
-        return ObjectDoesNotExist
+        raise ObjectDoesNotExist
 
 @shared_task
 def validate_numb(parameter, lower_bound_inclusive, upper_bound_inclusive):
     if parameter < lower_bound_inclusive or parameter > upper_bound_inclusive:
-        return ValueError
+        raise ValueError
 
     else:
         return parameter
@@ -270,7 +270,7 @@ def verify_boolean(parameter):
     elif parameter == 0:
         return False
     else:
-        return ValueError
+        raise ValueError
 
 @shared_task
 def get_survey_responses(user_id):
@@ -287,7 +287,7 @@ def get_survey_responses(user_id):
 
     sex_value = models.ActivityAnswer.objects.get(question_identifier=settings.SEX_QUESTION_IDENTIFIER, user= user).value
     if sex_value != "male" or "female":
-        return ValueError
+        raise ValueError
 
     ancestry_value = models.ActivityAnswer.objects.get(question_identifier=settings.ANCESTRY_QUESTION_IDENTIFIER, user = user).boolean_value
 

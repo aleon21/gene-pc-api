@@ -94,10 +94,18 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             values = get_survey_responses(request.user.id.hex)
 
         except ValueError:
-            pass
+            return Response({"error":
+                    {
+                        "message": "Invalid value(s) provided in survey. Please review your answers and resubmit.",
+                    }
+            }, status=400)
             # parameter is out of bound
         except ObjectDoesNotExist:
-            pass
+            return Response({"error":
+                    {
+                        "message": "Survey has not been completed and risk score cannot be calculated.",
+                    }
+            }, status=400)
             # survey
 
         try:
@@ -111,19 +119,18 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
             obese = verify_boolean(request.GET["obese"])
 
-
         # missing or invalid lifestyle parameter
         except MultiValueDictKeyError:
             return Response({"error":
                     {
-                        "message": "....",
+                        "message": "Unable to retrieve lifestyle risk value.",
                     }
             }, status=400)
 
         except ValueError:
             return Response({"error":
                 {
-                    "message": "....",
+                    "message": "Invalid value provided for lifestyle risk category.",
                 }
             }, status=400)
 
@@ -161,7 +168,7 @@ class RiskScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         except Exception:
             return Response({"error":
                 {
-                    "message": "....",
+                    "message": "An error occurred during risk score calculation. Please contact supervisor for support.",
                 }
             }, status=400)
 
